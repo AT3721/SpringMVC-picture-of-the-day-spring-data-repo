@@ -2,67 +2,96 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Bức ảnh của ngày - NASA</title>
+    <title>Image of the Day</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 30px 100px; }
-        #img-of-the-day { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 20px; }
-        .comment-item { border-bottom: 1px solid #ccc; padding: 10px 0; }
-        .like-btn { background-color: #007bff; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .nasa-image { max-width: 100%; height: auto; border-radius: 8px; }
+        .comment-box { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
+        .pagination { margin-top: 20px; }
+        .pagination a, .pagination span { padding: 8px 12px; margin-right: 5px; border: 1px solid #ccc; text-decoration: none; }
+        .pagination span.active { background-color: #007bff; color: white; border-color: #007bff; }
     </style>
 </head>
 <body>
 
-<h2>BỨC ẢNH CỦA NGÀY (NASA APOD)</h2>
+<h1>Bức ảnh của ngày (NASA Astronomy Picture of the Day)</h1>
 
-<!-- Ảnh lấy từ API NASA -->
-<img id="img-of-the-day" alt="NASA Image of the day loading...">
+<!-- Bức ảnh NASA -->
+<div>
+    <img id="img-of-the-day" class="nasa-image" src="" alt="NASA Image of the Day"/>
+</div>
 
-<!-- Form đánh giá -->
-<form th:action="@{/nasa/comment}" th:object="${commentForm}" method="post">
+<hr/>
+
+<!-- Form gửi bình luận mới -->
+<h2>Đánh giá bức ảnh</h2>
+<form th:action="@{/nasa/save}" th:object="${comment}" method="post">
     <div>
+        <label>Điểm đánh giá (1-5):</label>
+        <!-- Chú ý: Dùng 'score' chuẩn theo class Comment -->
         <select th:field="*{score}">
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
+            <option value="1">1 Star</option>
+            <option value="2">2 Stars</option>
+            <option value="3">3 Stars</option>
+            <option value="4">4 Stars</option>
+            <option value="5">5 Stars</option>
         </select>
     </div>
     <br/>
     <div>
-        <label>Author:</label><br/>
-        <input type="text" th:field="*{author}" required />
+        <label>Tác giả:</label>
+        <input type="text" th:field="*{author}" required placeholder="Nhập tên của bạn..."/>
     </div>
     <br/>
     <div>
-        <label>Feedback:</label><br/>
-        <textarea th:field="*{feedback}" rows="4" cols="50" required></textarea>
+        <label>Bình luận:</label><br/>
+        <textarea th:field="*{feedback}" rows="4" cols="50" required placeholder="Viết nhận xét..."></textarea>
     </div>
     <br/>
-    <button type="submit">Comment</button>
+    <button type="submit">Gửi bình luận</button>
 </form>
 
 <hr/>
 
-<h3>Danh sách nhận xét hôm nay:</h3>
+<!-- Danh sách các bình luận -->
+<h2>Các bình luận gần đây</h2>
 
-<div th:each="c : ${comments}" class="comment-item">
-    <p>
-        <strong th:text="${'+' + c.score + ' ' + c.feedback}"></strong>
-        (Bởi: <span th:text="${c.author}"></span> - <span th:text="${c.date}"></span>)
-    </p>
-    <form th:action="@{/nasa/like/{id}(id=${c.id})}" method="post" style="display:inline;">
-        <button type="submit" class="like-btn">
-            Like (<span th:text="${c.likes}">0</span>)
-        </button>
-    </form>
+<div th:if="${comments.content.isEmpty()}">
+    <p>Chưa có bình luận nào. Hãy là người đầu tiên đánh giá!</p>
 </div>
 
-<!-- Script gọi API NASA -->
+<div th:each="c : ${comments.content}" class="comment-box">
+    <p>
+        <strong th:text="${c.author}">Tác giả</strong> -
+        <span>Đánh giá: </span><strong th:text="${c.score} + '★'">5★</strong> -
+        <small th:text="${#temporals.format(c.date, 'dd/MM/yyyy')}">14/10/2026</small>
+    </p>
+    <p th:text="${c.feedback}">Nội dung bình luận...</p>
+    <p>
+        <span th:text="${c.likes}">0</span> Likes
+    <form th:action="@{/nasa/like/{id}(id=${c.id})}" method="post" style="display:inline;">
+        <button type="submit">+1 Like</button>
+    </form>
+    </p>
+</div>
+
+<!-- Thanh Phân Trang (Pagination) -->
+<div class="pagination" th:if="${comments.totalPages > 1}">
+    <!-- Trang trước -->
+    <a th:if="${comments.hasPrevious()}"
+       th:href="@{/nasa(page=${comments.number - 1})}">← Trang trước</a>
+
+    <!-- Số trang hiện tại / Tổng số trang -->
+    <span class="active" th:text="${comments.number + 1} + ' / ' + ${comments.totalPages}">1 / 1</span>
+
+    <!-- Trang sau -->
+    <a th:if="${comments.hasNext()}"
+       th:href="@{/nasa(page=${comments.number + 1})}">Trang sau →</a>
+</div>
+
+<!-- Script tự động load ảnh từ NASA API -->
 <script>
-    // Thay your_api_key_here bằng API key bạn đã tạo (hoặc dùng DEMO_KEY để test nhanh)
-    let apiKey = 'S1O0MvmlcuQ5urqfaUgt9kqyCUxs2QTI3Eb8UDT1';
-    let query = 'https://api.nasa.gov/planetary/apod?api_key=' + apiKey;
+    let query = 'https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY';
     let request = new XMLHttpRequest();
     request.open('GET', query);
     request.onload = function() {
